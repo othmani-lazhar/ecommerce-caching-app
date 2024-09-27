@@ -4,6 +4,7 @@ package com.java.ecommerce.adapter.cache;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -40,6 +41,40 @@ public class InMemoryCache<K, V> implements CacheAdapter<K, V> {
     @Override
     public void evict(K key) {
         cacheMap.remove(key);
+    }
+
+    @Override
+    public Map<K, V> getAll(List<K> keys) {
+        return cacheMap.entrySet().stream()
+                .filter(entry -> keys.contains(entry.getKey()))
+                .collect(ConcurrentHashMap::new, (map, entry) -> map.put(entry.getKey(), entry.getValue().getValue()), ConcurrentHashMap::putAll);
+    }
+
+    @Override
+    public void putAll(Map<K, V> entries) {
+        Map<K, CacheValue<V>> values = entries.entrySet().stream()
+                .collect(ConcurrentHashMap::new, (map, entry) -> map.put(entry.getKey(), new CacheValue<>(entry.getValue(), System.currentTimeMillis() + ttl)), ConcurrentHashMap::putAll);
+        cacheMap.putAll(values);
+    }
+
+    @Override
+    public void evictAll(List<K> keys) {
+        cacheMap.keySet().removeAll(keys);
+    }
+
+    @Override
+    public void clear() {
+        cacheMap.clear();
+    }
+
+    @Override
+    public boolean containsKey(K key) {
+        return cacheMap.containsKey(key);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return cacheMap.isEmpty();
     }
 
     private void evictExpiredEntries() {
